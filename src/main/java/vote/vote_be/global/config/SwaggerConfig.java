@@ -22,7 +22,7 @@ public class SwaggerConfig {
                 .description("Vote API 명세서")
                 .version("1.0.0");
 
-        String jwtSchemeName = "JWT TOKEN";
+        String jwtSchemeName = "Bearer Authentication";
 
         SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwtSchemeName);
 
