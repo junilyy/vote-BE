@@ -56,7 +56,8 @@ jobs:
           script: |
             sudo docker-compose down
             sudo docker pull ${{ secrets.DOCKER_REPO }}:$IMAGE_TAG
-            sudo IMAGE_TAG=$IMAGE_TAG docker-compose -f docker-compose.yml up -d
+            export IMAGE_TAG=$IMAGE_TAG
+            sudo -E docker-compose up -d
             sudo docker image prune -f
       # jar 파일명 확인
       - name: Show built files
