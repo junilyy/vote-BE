@@ -62,7 +62,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.addAllowedOriginPattern("http://localhost:8080"); // 로컬 도메인 허용(나중에 프론트 도메인으로 교체 필요)
+        configuration.setAllowedOrigins(List.of("http://localhost:8080","http://localhost:3000")); // 로컬 도메인 허용(나중에 프론트 도메인으로 교체 필요)
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(true); // 쿠키 인증 정보 허용
