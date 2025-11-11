@@ -54,10 +54,10 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: IMAGE_TAG
           script: |
-            sudo docker-compose down
             sudo docker pull ${{ secrets.DOCKER_REPO }}:$IMAGE_TAG
-            export IMAGE_TAG=$IMAGE_TAG
-            sudo -E docker-compose up -d
+            cd /root
+            docker compose down --remove-orphans -v || true
+            IMAGE_TAG=$IMAGE_TAG docker compose up -d --force-recreate
             sudo docker image prune -f
       # jar 파일명 확인
       - name: Show built files
