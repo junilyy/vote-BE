@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import vote.vote_be.domain.auth.dto.internal.LoginResult;
+import vote.vote_be.domain.auth.dto.request.EmailCheckRequest;
 import vote.vote_be.domain.auth.dto.request.LoginRequest;
 import vote.vote_be.domain.auth.dto.request.SignupRequest;
 import vote.vote_be.domain.auth.dto.response.*;
@@ -84,9 +85,9 @@ public class AuthController {
 
     /* 이메일 중복 체크 */
     @Operation(summary = "이메일 중복 체크", description = "available = true면 중복 X")
-    @GetMapping("/check/email")
-    public ApiResponse<DuplicateCheckResponse> checkEmail(@RequestParam("value") String value) {
-        return ApiResponse.onSuccess(authService.checkEmail(value));
+    @PostMapping("/check/email")
+    public ApiResponse<DuplicateCheckResponse> checkEmail(@RequestBody @Valid EmailCheckRequest request) {
+        return ApiResponse.onSuccess(authService.checkEmail(request.getValue()));
     }
 
 }
