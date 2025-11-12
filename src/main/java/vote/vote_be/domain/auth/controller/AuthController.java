@@ -1,23 +1,20 @@
 package vote.vote_be.domain.auth.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import vote.vote_be.domain.auth.dto.internal.LoginResult;
 import vote.vote_be.domain.auth.dto.request.LoginRequest;
 import vote.vote_be.domain.auth.dto.request.SignupRequest;
-import vote.vote_be.domain.auth.dto.response.DuplicateCheckResponse;
-import vote.vote_be.domain.auth.dto.response.LoginResponse;
-import vote.vote_be.domain.auth.dto.response.SignupResponse;
-import vote.vote_be.domain.auth.dto.response.TokenValidationResponse;
+import vote.vote_be.domain.auth.dto.response.*;
 import vote.vote_be.domain.auth.service.AuthService;
 import vote.vote_be.global.apiPayload.ApiResponse;
 import vote.vote_be.global.apiPayload.code.SimpleMessageDTO;
 import vote.vote_be.global.apiPayload.code.status.SuccessStatus;
-import vote.vote_be.global.security.dto.TokenResponse;
-
+import jakarta.servlet.http.HttpServletResponse;
+import vote.vote_be.global.security.jwt.CookieUtil;
 
 @RestController
 @RequiredArgsConstructor
@@ -27,28 +24,47 @@ public class AuthController {
 
     @Operation(summary = "회원가입", description = "회원가입 완료 메시지, loginId, 이름을 반환합니다.")
     @PostMapping("/auth/signup")
-    public ApiResponse<SignupResponse> signup(@RequestBody @Valid SignupRequest req) {
-        return ApiResponse.of(SuccessStatus.CREATED,authService.signup(req));
+    public ApiResponse<SignupResponse> signup(@RequestBody @Valid SignupRequest request) {
+        return ApiResponse.of(SuccessStatus.CREATED,authService.signup(request));
     }
 
     /* 로그인 */
     @Operation(summary = "로그인", description = "Access/Refresh 토큰을 포함한 로그인 응답을 반환합니다.")
     @PostMapping("/auth/login")
-    public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest req) {
-        return ApiResponse.onSuccess(authService.login(req));
+    public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest request, HttpServletResponse response) {
+        LoginResult result = authService.login(request);
+
+        var cookie = CookieUtil.buildRefreshCookie(
+                result.getRefreshToken(),
+                result.getRefreshTtlSec(),
+                "",
+                false,
+                "LAX"
+        );
+        response.addHeader("Set-Cookie", cookie.toString());
+
+        return ApiResponse.onSuccess(result.getLoginResponse());
     }
 
     /* 로그아웃 */
     @Operation(summary = "로그아웃", description = "사용자의 Refresh Token을 Redis에서 삭제합니다.")
     @PostMapping("/auth/logout")
-    public ApiResponse<SimpleMessageDTO> logout(HttpServletRequest request) {
+    public ApiResponse<SimpleMessageDTO> logout(HttpServletRequest request, HttpServletResponse response) {
+
+        var del = CookieUtil.deleteRefreshCookie(
+                "",
+                false,
+                "Lax"
+        );
+        response.addHeader("Set-Cookie", del.toString());
+
         return ApiResponse.onSuccess(authService.logout(request));
     }
 
     /* 토큰 재발급 */
     @Operation(summary = "Access Token 재발급", description = "사용자의 Access Token만 재발급합니다.")
     @PostMapping("/auth/refresh")
-    public ApiResponse<TokenResponse> newAccessToken(@RequestHeader("X-Refresh-Token") String refreshToken) {
+    public ApiResponse<AccessTokenResponse> newAccessToken(@CookieValue(name = CookieUtil.REFRESH_COOKIE, required = false) String refreshToken) {
         return ApiResponse.onSuccess(authService.newAccessToken(refreshToken));
     }
 
@@ -72,4 +88,5 @@ public class AuthController {
     public ApiResponse<DuplicateCheckResponse> checkEmail(@RequestParam("value") String value) {
         return ApiResponse.onSuccess(authService.checkEmail(value));
     }
+
 }

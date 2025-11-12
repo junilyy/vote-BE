@@ -5,12 +5,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vote.vote_be.domain.auth.dto.internal.LoginResult;
 import vote.vote_be.domain.auth.dto.request.LoginRequest;
 import vote.vote_be.domain.auth.dto.request.SignupRequest;
-import vote.vote_be.domain.auth.dto.response.DuplicateCheckResponse;
-import vote.vote_be.domain.auth.dto.response.LoginResponse;
-import vote.vote_be.domain.auth.dto.response.SignupResponse;
-import vote.vote_be.domain.auth.dto.response.TokenValidationResponse;
+import vote.vote_be.domain.auth.dto.response.*;
 import vote.vote_be.domain.user.entity.*;
 import vote.vote_be.domain.user.repository.UserRepository;
 import vote.vote_be.global.apiPayload.code.SimpleMessageDTO;
@@ -53,7 +51,7 @@ public class AuthService {
 
     /* 로그인 */
     @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest req) {
+    public LoginResult login(LoginRequest req) {
         // LoginId 존재 여부 확인
         User user = userRepository.findByLoginId(req.getLoginId())
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NOT_FOUND_LOGIN_ID));
@@ -63,11 +61,23 @@ public class AuthService {
 
         TokenResponse tokens = tokenProvider.createToken(user);
 
-        // userId 기준으로 레디스에 refresh token 저장(TTL=refresh 남은 시간)
-        long ttlSec = tokenProvider.getRemainingSeconds(tokens.getRefreshToken());
-        redisService.setRefreshToken(RT_KEY_PREFIX + user.getId(), tokens.getRefreshToken(), ttlSec);
+        // refresh token
+        String refreshToken = tokens.getRefreshToken();
 
-        return LoginResponse.of(user.getId(), user.getName(), user.getPart(), user.getTeam(), tokens.getAccessToken(), tokens.getRefreshToken());
+        // userId 기준으로 레디스에 refresh token 저장(TTL=refresh 남은 시간)
+        long ttlSec = tokenProvider.getRemainingSeconds(refreshToken);
+        redisService.setRefreshToken(RT_KEY_PREFIX + user.getId(), refreshToken, ttlSec);
+
+        // 로그인 응답 생성
+        LoginResponse loginResponse = LoginResponse.of(
+                user.getId(),
+                user.getName(),
+                user.getPart(),
+                user.getTeam(),
+                tokens.getAccessToken()
+        );
+
+        return LoginResult.of(loginResponse, refreshToken, ttlSec);
     }
 
     @Transactional
@@ -85,7 +95,7 @@ public class AuthService {
 
 
     @Transactional(readOnly = true)
-    public TokenResponse newAccessToken(String refreshToken) { // 프론트에서 Authorization 헤더를 빼고 전송해줘야함.
+    public AccessTokenResponse newAccessToken(String refreshToken) { // 프론트에서 Authorization 헤더를 빼고 전송해줘야함.
 
         // refresh 토큰 검증
         TokenStatus tokenStatus = tokenProvider.validateToken(refreshToken);
@@ -102,7 +112,7 @@ public class AuthService {
         // Redis의 refresh 토큰과 비교
         String key = RT_KEY_PREFIX + userId;
         String stored = redisService.getValue(key);
-        if (stored.isEmpty()) {
+        if (stored == null || stored.isEmpty()) {
             // 만료/로그아웃 등으로 없는 상태
             throw new GeneralException(ErrorStatus.REFRESH_TOKEN_EXPIRED);
         }
@@ -118,7 +128,7 @@ public class AuthService {
         // AccessToken만 새로 발급
         String newAccess = tokenProvider.createAccessToken(user);
 
-        return TokenResponse.of(newAccess, refreshToken);
+        return AccessTokenResponse.of(newAccess);
     }
 
     /* 로그인 아이디 중복 체크 */

@@ -14,16 +14,14 @@ public class LoginResponse {
     private Part part;
     private Team team;
     private String accessToken;
-    private String refreshToken;
 
-    public static LoginResponse of (Long userId, String name, Part part, Team team, String accessToken, String refreshToken) {
+    public static LoginResponse of (Long userId, String name, Part part, Team team, String accessToken) {
         LoginResponse loginResponse = new LoginResponse();
         loginResponse.userId = userId;
         loginResponse.name = name;
         loginResponse.part = part;
         loginResponse.team = team;
         loginResponse.accessToken = accessToken;
-        loginResponse.refreshToken = refreshToken;
 
         return loginResponse;
     }
