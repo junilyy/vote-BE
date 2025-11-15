@@ -34,6 +34,13 @@ public class AuthService {
     @Transactional
     public SignupResponse signup(SignupRequest req) {
 
+        // 중복 체크(login_id, email)
+        if (userRepository.existsByLoginId(req.getLoginId()))
+            throw new GeneralException(ErrorStatus.DUPLICATE_LOGIN_ID);
+
+        if (req.getEmail() != null && userRepository.existsByEmail(req.getEmail()))
+            throw new GeneralException(ErrorStatus.DUPLICATE_EMAIL);
+
         User user = User.builder()
                 .loginId(req.getLoginId())
                 .password(passwordEncoder.encode(req.getPassword()))
@@ -151,6 +158,11 @@ public class AuthService {
         // 유효성 검사는 JwtAuthenticationFilter에서 처리
         String accessToken = tokenProvider.resolveToken(request);
         TokenStatus status = tokenProvider.validateToken(accessToken);
+
+        if (status == TokenStatus.MISSING) {
+            throw new GeneralException(ErrorStatus.TOKEN_INVALID);
+        }
+
         return TokenValidationResponse.of("Access Token이 유효합니다.", status);
     }
 }

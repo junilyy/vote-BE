@@ -46,14 +46,18 @@ jobs:
       # 서버 배포
       - name: Deploy to server with Docker
         uses: appleboy/ssh-action@master
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG
           script: |
-            sudo docker-compose down
-            sudo docker pull ${{ secrets.DOCKER_REPO }}
-            sudo docker-compose -f docker-compose.yml up -d
+            sudo docker pull ${{ secrets.DOCKER_REPO }}:$IMAGE_TAG
+            cd /root
+            docker compose down --remove-orphans -v || true
+            IMAGE_TAG=$IMAGE_TAG docker compose up -d --force-recreate
             sudo docker image prune -f
       # jar 파일명 확인
       - name: Show built files
